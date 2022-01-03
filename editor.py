@@ -14,7 +14,7 @@ AUDIO_FIELD_POS = 5
 POS_FIELD_NAME = "POS"
 
 # API constants
-JOTOBA_URL = "http://127.0.0.1:8080"
+JOTOBA_URL = "https://jotoba.de"
 JOTOBA_API = JOTOBA_URL + "/api"
 WORDS_API_URL = JOTOBA_API + "/search/words"
 SENTENCE_API_URL = JOTOBA_API + "/search/sentences"
@@ -24,11 +24,6 @@ def fill_data(fields, text):
         word = request_word(text)
     except:
         return
-    #print(word)
-
-    if word != None and "audio" in word and fields[AUDIO_FIELD_NAME] == "":
-        audio = JOTOBA_URL+word["audio"]
-        fields[AUDIO_FIELD_NAME] = f'[sound:{audio}]'
 
     pos = get_pos(word)
     if fields[POS_FIELD_NAME] == "" and len(pos) > 0:
@@ -37,16 +32,15 @@ def fill_data(fields, text):
     return True
 
 def request_sentence(text):
-    data = '{"query":"' + text + '","language":"English","no_english":false}'
-    headers = {"Content-Type": "application/json; charset=utf-8", "Accept":"application/json"}
-    res = requests.post(SENTENCE_API_URL, data = data.encode('utf-8'), headers = headers)
-    return json.loads(res.text)["sentences"]
+    return json.loads(request(SENTENCE_API_URL, text).text)["sentences"]
 
 def request_word(text):
+    return find_word(json.loads(request(WORDS_API_URL, text).text), text)
+
+def request(URL, text):
     data = '{"query":"' + text + '","language":"English","no_english":false}'
     headers = {"Content-Type": "application/json; charset=utf-8", "Accept":"application/json"}
-    res = requests.post(WORDS_API_URL, data = data.encode('utf-8'), headers = headers)
-    return find_word(json.loads(res.text), text)
+    return requests.post(URL, data = data.encode('utf-8'), headers = headers)
 
 def find_word(res, text):
     words=res["words"]
@@ -59,7 +53,6 @@ def find_word(res, text):
         return None
 
     return potential_words[0]
-
 
 def get_pos(word):
     pos = []
