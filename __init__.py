@@ -1,1 +1,1 @@
-from . import japanese_examples
+from . import editor
