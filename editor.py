@@ -1,8 +1,9 @@
-from anki.hooks import addHook
-from aqt import mw
+from .jotoba import *
+from .utils import format_furigana
 
-import json
-import requests
+from anki.hooks import addHook
+#from aqt.utils import showInfo
+from aqt import mw
 
 # Field constants
 SRC_FIELD_NAME = "Expression"
@@ -11,79 +12,54 @@ SRC_FIELD_POS = 0
 AUDIO_FIELD_NAME = "Audio"
 AUDIO_FIELD_POS = 5
 
+MEANING_FIELD_NAME = "Meaning"
+MEANING_FIELD_POS = 2
+
+READING_FIELD_NAME = "Reading"
+READING_FIELD_POS = 1
+
 POS_FIELD_NAME = "POS"
+POS_FIELD_POS = 3
 
-# API constants
-JOTOBA_URL = "https://jotoba.de"
-JOTOBA_API = JOTOBA_URL + "/api"
-WORDS_API_URL = JOTOBA_API + "/search/words"
-SENTENCE_API_URL = JOTOBA_API + "/search/sentences"
-
-def fill_data(fields, text):
+def fill_data(fields, text, flag):
     try:
         word = request_word(text)
     except:
-        return
+        print("Didn't found word")
+        return flag
+
+    if word == None:
+        print("didn't found #2")
+        return flag
+
+    did_change = False
 
     pos = get_pos(word)
     if fields[POS_FIELD_NAME] == "" and len(pos) > 0:
-        fields[POS_FIELD_NAME] = ";".join(pos)
+        fields[POS_FIELD_NAME] = "; ".join(pos)
+        did_change = True
 
-    return True
+    reading = get_katakana(word)
+    if fields[READING_FIELD_NAME] == "":
+        fields[READING_FIELD_NAME] = reading
+        did_change = True
 
-def request_sentence(text):
-    return json.loads(request(SENTENCE_API_URL, text).text)["sentences"]
+    if fields[MEANING_FIELD_NAME] == "" and gloss_count(word) <= 3:
+        glosses = get_glosses(word)
+        fields[MEANING_FIELD_NAME] = ", ".join(glosses)
+        did_change = True
 
-def request_word(text):
-    return find_word(json.loads(request(WORDS_API_URL, text).text), text)
+    try:
+        sentences = request_sentence(text)
+        for i, sentence in enumerate(sentences):
+            if i > 2:
+                break;
+            fields["Example "+str(i+1)] = format_furigana(sentence["furigana"]) 
+    except:
+        print("didn't find sentences")
+        pass
 
-def request(URL, text):
-    data = '{"query":"' + text + '","language":"English","no_english":false}'
-    headers = {"Content-Type": "application/json; charset=utf-8", "Accept":"application/json"}
-    return requests.post(URL, data = data.encode('utf-8'), headers = headers)
-
-def find_word(res, text):
-    words=res["words"]
-    potential_words = []
-    for word in words:
-        if word["reading"]["kanji"] == text:
-            potential_words.append(word)
-
-    if len(potential_words) != 1:
-        return None
-
-    return potential_words[0]
-
-def get_pos(word):
-    pos = []
-    if word != None and "senses" in word:
-        for sense in word["senses"]:
-            for keys in sense["pos"]:
-                for key in keys.keys():
-                    pos.append(key)
-        pos = list(dict.fromkeys(pos))
-    return pos
-
-def get_pitch(word) -> str:
-    if not "pitch" in word:
-        return ""
-
-    pitch_str = ""
-    pitch = word["pitch"]
-
-    for i in pitch:
-        part = i["part"];
-        high = i["high"];
-        if high:
-            pitch_str += "↑"
-        else:
-            pitch_str += "↓"
-        pitch_str += part
-
-    return pitch_str
-
-
-### Hooks
+    return did_change
 
 def add_examples_focusLost(flag, n, fidx):
     src_text = n[SRC_FIELD_NAME]
@@ -101,37 +77,9 @@ def add_examples_focusLost(flag, n, fidx):
     if fidx not in lookupIdx:
         return flag
 
-    return fill_data(n, src_text)
+    return fill_data(n, src_text, flag)
 
 addHook('editFocusLost', add_examples_focusLost)
 
-def get_audio(editor):
-    allFields = editor.note.fields
-    src_text = allFields[SRC_FIELD_POS];
-    if src_text == "":
-        return
-    try:
-        word = request_word(src_text)
-    except:
-        return
-
-    if word != None and "audio" in word:
-        audio = JOTOBA_URL+word["audio"]
-        set_values_on_editor(audio, editor)
-
-
-def set_values_on_editor(audio, editor):
-    audio = editor.urlToFile(audio)
-    field_number_of_audio = 5
-    allFields = editor.note.fields
-    allFields[field_number_of_audio] = f'[sound:{audio}]'
-    editor.loadNote()
-    editor.web.setFocus()
-    editor.web.eval(f'focusField({field_number_of_audio});')
-    editor.web.eval('caretToEnd();')
-
-def addMyButton(buttons, editor):
-    editor._links['add_audio'] = get_audio
-    return buttons + [editor._addButton("", "add_audio", "tooltip", label = "Add Audio")]
-
-addHook("setupEditorButtons", addMyButton)
+from .buttons import init as btn_init
+btn_init()
