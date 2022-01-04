@@ -18,6 +18,8 @@ def get_audio(editor):
     if word != None and "audio" in word:
         audio = JOTOBA_URL+word["audio"]
         set_values_on_editor(audio, editor)
+    else:
+        showInfo("Word has no audio")
 
 
 def set_values_on_editor(audio, editor):
@@ -29,7 +31,7 @@ def set_values_on_editor(audio, editor):
     editor.web.eval(f'focusField({AUDIO_FIELD_POS});')
     editor.web.eval('caretToEnd();')
 
-def addMyButton(buttons, editor):
+def addAudioBtn(buttons, editor):
     editor._links['add_audio'] = get_audio
     return buttons + [editor._addButton("", "add_audio", "tooltip", label = "Add Audio")]
 
@@ -62,6 +64,6 @@ def addUpdateFieldBtn(buttons, editor):
     return buttons + [editor._addButton("", "update_fields", "tooltip", label = "Update data")]
 
 def init():
-    addHook("setupEditorButtons", addMyButton)
     addHook("setupEditorButtons", addClearContent)
     addHook("setupEditorButtons", addUpdateFieldBtn)
+    addHook("setupEditorButtons", addAudioBtn)

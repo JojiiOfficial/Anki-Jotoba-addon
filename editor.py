@@ -2,7 +2,6 @@ from .jotoba import *
 from .utils import format_furigana
 
 from anki.hooks import addHook
-#from aqt.utils import showInfo
 from aqt import mw
 
 # Field constants
@@ -20,6 +19,8 @@ READING_FIELD_POS = 1
 
 POS_FIELD_NAME = "POS"
 POS_FIELD_POS = 3
+
+EXAMPLE_FIELD_PREFIX = "Example "
 
 def fill_data(fields, text, flag):
     if not has_fields(fields):
@@ -57,7 +58,7 @@ def fill_data(fields, text, flag):
         for i, sentence in enumerate(sentences):
             if i > 2:
                 break;
-            fields["Example "+str(i+1)] = format_furigana(sentence["furigana"]) 
+            fields[EXAMPLE_FIELD_PREFIX+str(i+1)] = format_furigana(sentence["furigana"]) 
     except:
         print("didn't find sentences")
         pass
