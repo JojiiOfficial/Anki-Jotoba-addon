@@ -97,7 +97,6 @@ def bulk_add_pitch(nids):
 
         try:
             kana = note[READING_FIELD_NAME]
-            print("kana: "+kana)
             word = request_word(note[SRC_FIELD_NAME], kana)
         except:
             print("not found for:"+note[SRC_FIELD_NAME])

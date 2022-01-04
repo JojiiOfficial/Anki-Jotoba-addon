@@ -25,9 +25,6 @@ def find_word(res, text, kana = ""):
         reading = word["reading"]
 
         if "kanji" in reading:
-            print(text)
-            print(kana)
-            print(reading)
             if reading["kanji"] == text and (reading["kana"] == kana or kana == ""):
                 potential_words.append(word)
             elif reading["kana"] == text:
