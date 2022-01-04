@@ -1,7 +1,9 @@
-from .editor import SRC_FIELD_POS, AUDIO_FIELD_POS, JOTOBA_URL, READING_FIELD_POS, MEANING_FIELD_POS, POS_FIELD_POS
-from .jotoba import request_word
+from .editor import SRC_FIELD_POS, SRC_FIELD_NAME, AUDIO_FIELD_POS, JOTOBA_URL, READING_FIELD_POS, MEANING_FIELD_POS, POS_FIELD_POS, PITCH_FIELD_POS, PITCH_FIELD_NAME, has_fields
+from .jotoba import request_word, get_pitch_html
 from anki.hooks import addHook
 from aqt.utils import showInfo
+from aqt.qt import *
+from aqt import mw
 
 # Audio button
 def get_audio(editor):
@@ -52,7 +54,7 @@ def update_fields(editor):
     allFields = editor.note.fields
     if allFields[SRC_FIELD_POS] == "":
         return
-    for i in [MEANING_FIELD_POS, READING_FIELD_POS, POS_FIELD_POS]:
+    for i in [MEANING_FIELD_POS, READING_FIELD_POS, POS_FIELD_POS, PITCH_FIELD_POS]:
         allFields[i] = f''
     editor.loadNote()
     editor.web.eval(f'focusField(0);')
@@ -67,3 +69,43 @@ def init():
     addHook("setupEditorButtons", addClearContent)
     addHook("setupEditorButtons", addUpdateFieldBtn)
     addHook("setupEditorButtons", addAudioBtn)
+    addHook("browser.setupMenus", setupBrowserMenu) # Bulk add
+
+def setupBrowserMenu(browser):
+    """ Add menu entry to browser window """
+    a = QAction("Bulk-add Pitch", browser)
+    a.triggered.connect(lambda: onRegenerate(browser))
+    browser.form.menuEdit.addSeparator()
+    browser.form.menuEdit.addAction(a)
+
+def onRegenerate(browser):
+    bulk_add_pitch(browser.selectedNotes())
+
+def bulk_add_pitch(nids):
+    mw.checkpoint("Bulk-add Pitch")
+    mw.progress.start()
+    for nid in nids:
+        note = mw.col.getNote(nid)
+
+        if not has_fields(note):
+            print("skipping: " + note[SRC_FIELD_NAME])
+            continue
+
+        if note[PITCH_FIELD_NAME] != "":
+            continue
+
+        try:
+            word = request_word(note[SRC_FIELD_NAME])
+        except:
+            print("not found for:"+note[SRC_FIELD_NAME])
+            continue
+
+        pitch = get_pitch_html(word)
+        if pitch == None:
+            continue
+
+        note[PITCH_FIELD_NAME] = pitch
+
+        note.flush()
+    mw.progress.finish()
+    mw.reset()

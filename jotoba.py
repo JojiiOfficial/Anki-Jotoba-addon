@@ -37,7 +37,6 @@ def find_word(res, text):
         potential_words = kana_words
 
     if len(potential_words) != 1:
-        print(len(potential_words))
         return None
 
     return potential_words[0]
@@ -74,9 +73,9 @@ def get_glosses(word):
             glosses.append(gloss)
     return glosses
 
-def get_pitch(word) -> str:
+def get_pitch(word) -> None | str:
     if not "pitch" in word:
-        return ""
+        return None
 
     pitch_str = ""
     pitch = word["pitch"]
@@ -89,6 +88,39 @@ def get_pitch(word) -> str:
         else:
             pitch_str += "↓"
         pitch_str += part
+
+    if pitch_str == "":
+        return None
+
+    return pitch_str
+
+def get_pitch_html(word) -> None | str:
+    if word == None or "pitch" not in word:
+        return None
+
+    pitch_str = ""
+    pitch = word["pitch"]
+
+    p_count = len(pitch)
+
+    for i,p in enumerate(pitch):
+        part = p["part"];
+        high = p["high"];
+
+        classes = ""
+
+        if high:
+            classes += "t"
+        else:
+            classes += "b"
+
+        if i != p_count -1:
+            classes += " r"
+
+        pitch_str += '<span class="pitch {classes}">{part}</span>'.format(classes=classes, part=part)
+
+    if pitch_str == "":
+        return None
 
     return pitch_str
 
