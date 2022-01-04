@@ -7,6 +7,8 @@ def format_furigana(furi) -> str:
     for c in furi:
         if c == '[':
             in_kanji = True
+            if out != "":
+                out +=" "
             continue
 
         if c == ']':
@@ -22,4 +24,3 @@ def format_furigana(furi) -> str:
         out += c
             
     return out
-
