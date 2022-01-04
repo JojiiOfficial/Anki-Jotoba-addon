@@ -22,6 +22,9 @@ POS_FIELD_NAME = "POS"
 POS_FIELD_POS = 3
 
 def fill_data(fields, text, flag):
+    if not has_fields(fields):
+        return flag
+
     try:
         word = request_word(text)
     except:
@@ -40,7 +43,7 @@ def fill_data(fields, text, flag):
         did_change = True
 
     reading = get_katakana(word)
-    if fields[READING_FIELD_NAME] == "":
+    if fields[READING_FIELD_NAME] == "" and text != reading:
         fields[READING_FIELD_NAME] = reading
         did_change = True
 
@@ -60,6 +63,13 @@ def fill_data(fields, text, flag):
         pass
 
     return did_change
+
+# Check whether all fields are available in given note
+def has_fields(fields) -> bool:
+    for field in [SRC_FIELD_NAME, AUDIO_FIELD_NAME, MEANING_FIELD_NAME, READING_FIELD_NAME, POS_FIELD_NAME]:
+        if not field in fields:
+            return False
+    return True
 
 def add_examples_focusLost(flag, n, fidx):
     src_text = n[SRC_FIELD_NAME]

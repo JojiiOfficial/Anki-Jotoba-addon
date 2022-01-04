@@ -20,11 +20,24 @@ def request(URL, text):
 def find_word(res, text):
     words=res["words"]
     potential_words = []
+    kana_words = []
     for word in words:
-        if word["reading"]["kanji"] == text:
-            potential_words.append(word)
+        reading = word["reading"]
+
+        if "kanji" in reading:
+            if reading["kanji"] == text:
+                potential_words.append(word)
+            elif reading["kana"] == text:
+                kana_words.append(word)
+        else:
+            if reading["kana"] == text:
+                potential_words.append(word)
+
+    if len(potential_words) == 0:
+        potential_words = kana_words
 
     if len(potential_words) != 1:
+        print(len(potential_words))
         return None
 
     return potential_words[0]
