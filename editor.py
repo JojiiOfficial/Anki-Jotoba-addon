@@ -28,9 +28,9 @@ EXAMPLE_FIELD_PREFIX = "Example "
 def fill_data(fields, text, flag):
     if not has_fields(fields):
         return flag
-
     try:
-        word = request_word(text)
+        reading = fields[READING_FIELD_NAME]
+        word = request_word(text, kana = reading)
     except:
         print("Didn't found word")
         return flag

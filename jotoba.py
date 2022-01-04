@@ -9,15 +9,15 @@ SENTENCE_API_URL = JOTOBA_API + "/search/sentences"
 def request_sentence(text):
     return json.loads(request(SENTENCE_API_URL, text).text)["sentences"]
 
-def request_word(text):
-    return find_word(json.loads(request(WORDS_API_URL, text).text), text)
+def request_word(text, kana = ""):
+    return find_word(json.loads(request(WORDS_API_URL, text).text), text, kana)
 
 def request(URL, text):
     data = '{"query":"' + text + '","language":"English","no_english":false}'
     headers = {"Content-Type": "application/json; charset=utf-8", "Accept":"application/json"}
     return requests.post(URL, data = data.encode('utf-8'), headers = headers)
 
-def find_word(res, text):
+def find_word(res, text, kana = ""):
     words=res["words"]
     potential_words = []
     kana_words = []
@@ -25,7 +25,10 @@ def find_word(res, text):
         reading = word["reading"]
 
         if "kanji" in reading:
-            if reading["kanji"] == text:
+            print(text)
+            print(kana)
+            print(reading)
+            if reading["kanji"] == text and (reading["kana"] == kana or kana == ""):
                 potential_words.append(word)
             elif reading["kana"] == text:
                 kana_words.append(word)

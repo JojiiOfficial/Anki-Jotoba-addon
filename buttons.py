@@ -1,4 +1,4 @@
-from .editor import SRC_FIELD_POS, SRC_FIELD_NAME, AUDIO_FIELD_POS, JOTOBA_URL, READING_FIELD_POS, MEANING_FIELD_POS, POS_FIELD_POS, PITCH_FIELD_POS, PITCH_FIELD_NAME, has_fields
+from .editor import SRC_FIELD_POS, SRC_FIELD_NAME, AUDIO_FIELD_POS, JOTOBA_URL, READING_FIELD_POS, MEANING_FIELD_POS, POS_FIELD_POS, PITCH_FIELD_POS, PITCH_FIELD_NAME, has_fields, READING_FIELD_NAME
 from .jotoba import request_word, get_pitch_html
 from anki.hooks import addHook
 from aqt.utils import showInfo
@@ -88,23 +88,28 @@ def bulk_add_pitch(nids):
         note = mw.col.getNote(nid)
 
         if not has_fields(note):
-            print("skipping: " + note[SRC_FIELD_NAME])
+            print("skipping: not all fields")
             continue
 
         if note[PITCH_FIELD_NAME] != "":
+            print("skipping: Pitch existing")
             continue
 
         try:
-            word = request_word(note[SRC_FIELD_NAME])
+            kana = note[READING_FIELD_NAME]
+            print("kana: "+kana)
+            word = request_word(note[SRC_FIELD_NAME], kana)
         except:
             print("not found for:"+note[SRC_FIELD_NAME])
             continue
 
         pitch = get_pitch_html(word)
         if pitch == None:
+            print("skipping: Pitch not available")
             continue
 
         note[PITCH_FIELD_NAME] = pitch
+        print("setting pitch")
 
         note.flush()
     mw.progress.finish()
