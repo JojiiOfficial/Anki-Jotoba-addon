@@ -66,7 +66,12 @@ def fill_data(fields, text, flag):
         for i, sentence in enumerate(sentences):
             if i > 2:
                 break;
-            fields[EXAMPLE_FIELD_PREFIX+str(i+1)] = format_furigana(sentence["furigana"]) 
+
+            field_name = EXAMPLE_FIELD_PREFIX+str(i+1)
+            if fields[field_name] != "":
+                continue
+
+            fields[field_name] = format_furigana(sentence["furigana"]) 
     except:
         print("didn't find sentences")
         pass
