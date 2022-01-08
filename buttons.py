@@ -1,5 +1,6 @@
-from .editor import SRC_FIELD_POS, SRC_FIELD_NAME, AUDIO_FIELD_POS, JOTOBA_URL, READING_FIELD_POS, MEANING_FIELD_POS, POS_FIELD_POS, PITCH_FIELD_POS, PITCH_FIELD_NAME, has_fields, READING_FIELD_NAME
-from .jotoba import request_word, get_pitch_html
+from .editor import SRC_FIELD_POS, SRC_FIELD_NAME, AUDIO_FIELD_POS, JOTOBA_URL, READING_FIELD_POS, MEANING_FIELD_POS, POS_FIELD_POS, PITCH_FIELD_POS, PITCH_FIELD_NAME, has_fields, READING_FIELD_NAME, POS_FIELD_NAME, EXAMPLE_FIELD_PREFIX
+from .jotoba import *
+from .utils import format_furigana
 from anki.hooks import addHook
 from aqt.utils import showInfo
 from aqt.qt import *
@@ -72,17 +73,32 @@ def init():
     addHook("browser.setupMenus", setupBrowserMenu) # Bulk add
 
 def setupBrowserMenu(browser):
-    """ Add menu entry to browser window """
+    """ Add pitch menu """
     a = QAction("Bulk-add Pitch", browser)
-    a.triggered.connect(lambda: onRegenerate(browser))
+    a.triggered.connect(lambda: onRegenerate(browser, pitch = True))
     browser.form.menuEdit.addSeparator()
     browser.form.menuEdit.addAction(a)
 
-def onRegenerate(browser):
-    bulk_add_pitch(browser.selectedNotes())
+    """ Add POS menu """
+    a = QAction("Bulk-add POS", browser)
+    a.triggered.connect(lambda: onRegenerate(browser, pos = True))
+    browser.form.menuEdit.addAction(a)
 
-def bulk_add_pitch(nids):
-    mw.checkpoint("Bulk-add Pitch")
+    """ Add Sentence menu """
+    a = QAction("Bulk-add Sentences", browser)
+    a.triggered.connect(lambda: onRegenerate(browser, sentences = True))
+    browser.form.menuEdit.addAction(a)
+
+    """ Add All menu """
+    a = QAction("Bulk-add All", browser)
+    a.triggered.connect(lambda: onRegenerate(browser,pitch = True, pos = True, sentences = True))
+    browser.form.menuEdit.addAction(a)
+
+def onRegenerate(browser, pitch = False, pos = False, sentences = False):
+    bulk_add(browser.selectedNotes(), pitch, pos, sentences)
+
+def bulk_add(nids, pitch = False, pos = False, sentences = False):
+    mw.checkpoint("Bulk-add data")
     mw.progress.start()
     for nid in nids:
         note = mw.col.getNote(nid)
@@ -91,8 +107,23 @@ def bulk_add_pitch(nids):
             print("skipping: not all fields")
             continue
 
-        if note[PITCH_FIELD_NAME] != "":
-            print("skipping: Pitch existing")
+        need_change = False
+        need_sentence = False
+
+        if note[PITCH_FIELD_NAME] == "" and pitch:
+            need_change = True
+
+        if note[POS_FIELD_NAME] == "" and pos:
+            need_change = True
+
+        if sentences:
+            for i in range(3):
+                if note[EXAMPLE_FIELD_PREFIX+str(i+1)] == "":
+                    need_change = True
+                    need_sentence = True
+                    break
+
+        if not need_change:
             continue
 
         try:
@@ -102,13 +133,29 @@ def bulk_add_pitch(nids):
             print("not found for:"+note[SRC_FIELD_NAME])
             continue
 
-        pitch = get_pitch_html(word)
-        if pitch == None:
-            print("skipping: Pitch not available")
-            continue
+        pitch_d = get_pitch_html(word)
+        if note[PITCH_FIELD_NAME] == "" and pitch and pitch_d != None:
+            note[PITCH_FIELD_NAME] = pitch_d
 
-        note[PITCH_FIELD_NAME] = pitch
-        print("setting pitch")
+        pos_d = get_pos(word)
+        if note[POS_FIELD_NAME] == "" and pos and pos_d != None:
+            note[POS_FIELD_NAME] = "; ".join(pos_d)
+
+        if sentences and need_sentence:
+            try:
+                sentences = request_sentence(note[SRC_FIELD_NAME])
+                for i, sentence in enumerate(sentences):
+                    if i > 2:
+                        break;
+
+                    field_name = EXAMPLE_FIELD_PREFIX+str(i+1)
+                    if note[field_name] != "":
+                        continue
+
+                    note[field_name] = format_furigana(sentence["furigana"]) 
+            except:
+                print("didn't find sentences")
+                pass
 
         note.flush()
     mw.progress.finish()

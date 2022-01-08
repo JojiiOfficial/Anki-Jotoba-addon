@@ -25,9 +25,21 @@ PITCH_FIELD_POS = 13
 
 EXAMPLE_FIELD_PREFIX = "Example "
 
+ALL_FIELDS = [SRC_FIELD_NAME, MEANING_FIELD_NAME, READING_FIELD_NAME, POS_FIELD_NAME, PITCH_FIELD_NAME, EXAMPLE_FIELD_PREFIX+"1", EXAMPLE_FIELD_PREFIX+"2",EXAMPLE_FIELD_PREFIX+"2"]
+
 def fill_data(fields, text, flag):
     if not has_fields(fields):
         return flag
+
+    need_update = False
+    for i in ALL_FIELDS:
+        if fields[i] == "":
+            need_update = True
+            break
+
+    if not need_update:
+        return flag
+
     try:
         reading = fields[READING_FIELD_NAME]
         word = request_word(text, kana = reading)
