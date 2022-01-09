@@ -84,6 +84,7 @@ def fill_data(fields, text, flag):
                 continue
 
             fields[field_name] = format_furigana(sentence["furigana"]) 
+            did_change = True
     except:
         print("didn't find sentences")
         pass
