@@ -73,7 +73,7 @@ def get_glosses(word):
             glosses.append(gloss)
     return glosses
 
-def get_pitch(word) -> None | str:
+def get_pitch(word):
     if not "pitch" in word:
         return None
 
@@ -94,7 +94,7 @@ def get_pitch(word) -> None | str:
 
     return pitch_str
 
-def get_pitch_html(word) -> None | str:
+def get_pitch_html(word):
     if word == None or "pitch" not in word:
         return None
 
