@@ -12,17 +12,17 @@ SRC_FIELD_POS = 0
 READING_FIELD_NAME = "Reading"
 READING_FIELD_POS = 1
 
+PITCH_FIELD_NAME = "Pitch"
+PITCH_FIELD_POS = 2
+
 MEANING_FIELD_NAME = "Meaning"
-MEANING_FIELD_POS = 2
+MEANING_FIELD_POS = 3
 
 POS_FIELD_NAME = "POS"
-POS_FIELD_POS = 3
+POS_FIELD_POS = 4
 
 AUDIO_FIELD_NAME = "Audio"
-AUDIO_FIELD_POS = 5
-
-PITCH_FIELD_NAME = "Pitch"
-PITCH_FIELD_POS = 13
+AUDIO_FIELD_POS = 6
 
 EXAMPLE_FIELD_PREFIX = "Example "
 
@@ -46,13 +46,14 @@ def fill_data(note: Note, text: str, flag: bool):
     try:
         reading = note[READING_FIELD_NAME]
         word = request_word(text, kana=reading)
-    except:  # error while fetching word
+    except Exception as e:  # error while fetching word
+        print(e)
         return flag
 
     if word is None:
         return flag
 
-    did_change = False
+    did_change = True
 
     note[SRC_FIELD_NAME] = word.expression
 
@@ -75,8 +76,8 @@ def fill_data(note: Note, text: str, flag: bool):
                 continue
 
             note[field_name] = format_furigana(sentence["furigana"])
-    except:
-        print("didn't find sentences")
+    except Exception as e:
+        print(e)
         pass
 
     return did_change

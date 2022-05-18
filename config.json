@@ -1,0 +1,8 @@
+{
+  "Language": "English",
+  "API Config": {
+    "JOTOBA_URL": "https://jotoba.de",
+    "WORDS_Suffix": "/api/search/words",
+    "SENTENCE_Suffix": "/api/search/sentences"
+  }
+}

@@ -28,7 +28,8 @@ class Word:
         self.pitch = get_pitch_html(word)
         self.glosses = get_glosses(word)
         self.part_of_speech = get_pos(word)
-        self.audio_url = JOTOBA_URL + word["audio"]
+        if "audio" in word:
+            self.audio_url = JOTOBA_URL + word["audio"]
 
 
 def request_sentence(text):
@@ -40,7 +41,7 @@ def request_word(text, kana=""):
 
 
 def request(URL, text):
-    data = '{"query":"' + text + '","language":"English","no_english":false}'
+    data = '{"query":"' + text + '","language":"English","no_english":true}'
     headers = {"Content-Type": "application/json; charset=utf-8", "Accept": "application/json"}
     return requests.post(URL, data=data.encode('utf-8'), headers=headers)
 
@@ -82,10 +83,11 @@ def get_pos(word) -> List[str]:
                 else:
                     for key in keys.keys():
                         pos.append(key)
-                        #if isinstance(keys[key], str):
-                        #    pos.append(key)
-                        #else:
-                        #    pos.append(key.keys()[0])
+                        #if key == "Verb":
+                        #    if isinstance(keys[key], str):
+                        #        pos.append(keys[key])
+                        #    else:
+                        #        pos.append(keys[key].keys()[0]) # ?????
         pos = list(dict.fromkeys(pos))
     return pos
 
