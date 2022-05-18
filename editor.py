@@ -1,39 +1,42 @@
+from anki.notes import Note
+from aqt import mw, gui_hooks
+from aqt.utils import showInfo
+
 from .jotoba import *
 from .utils import format_furigana
-
-from anki.hooks import addHook
-from aqt import mw
 
 # Field constants
 SRC_FIELD_NAME = "Expression"
 SRC_FIELD_POS = 0
 
-AUDIO_FIELD_NAME = "Audio"
-AUDIO_FIELD_POS = 5
+READING_FIELD_NAME = "Reading"
+READING_FIELD_POS = 1
 
 MEANING_FIELD_NAME = "Meaning"
 MEANING_FIELD_POS = 2
 
-READING_FIELD_NAME = "Reading"
-READING_FIELD_POS = 1
-
 POS_FIELD_NAME = "POS"
 POS_FIELD_POS = 3
+
+AUDIO_FIELD_NAME = "Audio"
+AUDIO_FIELD_POS = 5
 
 PITCH_FIELD_NAME = "Pitch"
 PITCH_FIELD_POS = 13
 
 EXAMPLE_FIELD_PREFIX = "Example "
 
-ALL_FIELDS = [SRC_FIELD_NAME, MEANING_FIELD_NAME, READING_FIELD_NAME, POS_FIELD_NAME, PITCH_FIELD_NAME, EXAMPLE_FIELD_PREFIX+"1", EXAMPLE_FIELD_PREFIX+"2",EXAMPLE_FIELD_PREFIX+"2"]
+ALL_FIELDS = [SRC_FIELD_NAME, MEANING_FIELD_NAME, READING_FIELD_NAME, POS_FIELD_NAME, PITCH_FIELD_NAME,
+              EXAMPLE_FIELD_PREFIX + "1", EXAMPLE_FIELD_PREFIX + "2", EXAMPLE_FIELD_PREFIX + "3"]
 
-def fill_data(fields, text, flag):
-    if not has_fields(fields):
+
+def fill_data(note: Note, text: str, flag: bool):
+    if not has_fields(note):
         return flag
 
     need_update = False
-    for i in ALL_FIELDS:
-        if fields[i] == "":
+    for field_i in ALL_FIELDS:
+        if note[field_i] == "":
             need_update = True
             break
 
@@ -41,82 +44,74 @@ def fill_data(fields, text, flag):
         return flag
 
     try:
-        reading = fields[READING_FIELD_NAME]
-        word = request_word(text, kana = reading)
-    except:
-        print("Didn't found word")
+        reading = note[READING_FIELD_NAME]
+        word = request_word(text, kana=reading)
+    except:  # error while fetching word
         return flag
 
-    if word == None:
-        print("didn't found #2")
+    if word is None:
         return flag
 
     did_change = False
 
-    pos = get_pos(word)
-    if fields[POS_FIELD_NAME] == "" and len(pos) > 0:
-        fields[POS_FIELD_NAME] = "; ".join(pos)
-        did_change = True
+    note[SRC_FIELD_NAME] = word.expression
 
-    reading = get_katakana(word)
-    if fields[READING_FIELD_NAME] == "" and text != reading:
-        fields[READING_FIELD_NAME] = reading
-        did_change = True
+    note[POS_FIELD_NAME] = "; ".join(word.part_of_speech)
 
-    if fields[MEANING_FIELD_NAME] == "" and gloss_count(word) <= 3:
-        glosses = get_glosses(word)
-        fields[MEANING_FIELD_NAME] = ", ".join(glosses)
-        did_change = True
+    note[READING_FIELD_NAME] = word.reading
 
-    pitch = get_pitch_html(word)
-    if fields[PITCH_FIELD_NAME] == "" and pitch != None:
-        fields[PITCH_FIELD_NAME] = pitch
-        did_change = True
+    note[MEANING_FIELD_NAME] = "; ".join(word.glosses[:3])
+
+    note[PITCH_FIELD_NAME] = word.pitch
 
     try:
         sentences = request_sentence(text)
         for i, sentence in enumerate(sentences):
             if i > 2:
-                break;
+                break
 
-            field_name = EXAMPLE_FIELD_PREFIX+str(i+1)
-            if fields[field_name] != "":
+            field_name = EXAMPLE_FIELD_PREFIX + str(i + 1)
+            if note[field_name] != "":
                 continue
 
-            fields[field_name] = format_furigana(sentence["furigana"]) 
-            did_change = True
+            note[field_name] = format_furigana(sentence["furigana"])
     except:
         print("didn't find sentences")
         pass
 
     return did_change
 
+
 # Check whether all fields are available in given note
-def has_fields(fields) -> bool:
-    for field in [SRC_FIELD_NAME, AUDIO_FIELD_NAME, MEANING_FIELD_NAME, READING_FIELD_NAME, POS_FIELD_NAME, PITCH_FIELD_NAME]:
-        if not field in fields:
+def has_fields(note) -> bool:
+    for field in [SRC_FIELD_NAME, AUDIO_FIELD_NAME, MEANING_FIELD_NAME, READING_FIELD_NAME, POS_FIELD_NAME,
+                  PITCH_FIELD_NAME]:
+        if field not in note:
             return False
     return True
 
-def add_examples_focusLost(flag, n, fidx):
+
+def add_examples_focus_lost(flag: bool, n: Note, fidx: int):
     src_text = n[SRC_FIELD_NAME]
 
     if src_text == "":
         return flag
 
-    lookupIdx = []
+    lookup_idx = []
     for f in [SRC_FIELD_NAME]:
         for c, name in enumerate(mw.col.models.field_names(n.note_type())):
             if name == f:
-                lookupIdx.append(c)
+                lookup_idx.append(c)
 
     # Not src field
-    if fidx not in lookupIdx:
+    if fidx not in lookup_idx:
         return flag
 
     return fill_data(n, src_text, flag)
 
-addHook('editFocusLost', add_examples_focusLost)
+
+gui_hooks.editor_did_unfocus_field.append(add_examples_focus_lost)
 
 from .buttons import init as btn_init
+
 btn_init()
