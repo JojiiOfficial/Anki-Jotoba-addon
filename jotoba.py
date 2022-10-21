@@ -4,8 +4,10 @@ import requests
 import json
 from aqt import mw
 
+from .utils import log
+
 config = mw.addonManager.getConfig(__name__)
-print(config)
+log(config)
 
 LANGUAGE = config["Language"]
 JOTOBA_URL = config["Jotoba_URL"]
@@ -46,7 +48,7 @@ def request_word(text, kana=""):
 
 
 def request(URL, text):
-    data = '{"query":"' + text + '","language":"'+LANGUAGE+'","no_english":true}'
+    data = '{"query":"' + text + '","language":"' + LANGUAGE + '","no_english":true}'
     headers = {"Content-Type": "application/json; charset=utf-8", "Accept": "application/json"}
     return requests.post(URL, data=data.encode('utf-8'), headers=headers)
 
@@ -142,6 +144,8 @@ def get_pitch(word) -> str:
 
 
 def get_pitch_html(word) -> str:
+    log(word)
+
     if word is None or "pitch" not in word:
         return ""
 

@@ -3,7 +3,7 @@ from aqt import mw, gui_hooks
 from aqt.utils import showInfo
 
 from .jotoba import *
-from .utils import format_furigana
+from .utils import format_furigana, log
 
 # Field constants
 EXPRESSION_FIELD_NAME = "Expression"
@@ -56,7 +56,7 @@ def fill_data(note: Note, expr: str, flag: bool, reading: str = ""):
     try:
         word = request_word(expr, reading)
     except Exception as e:  # error while fetching word
-        print(e)
+        log(e)
         return flag
 
     if word is None:  # word not found or ambiguity (no kana reading) -> user will call again after providing reading
@@ -84,7 +84,7 @@ def fill_data(note: Note, expr: str, flag: bool, reading: str = ""):
 
             note[field_name] = format_furigana(sentence["furigana"])
     except Exception as e:
-        print(e)
+        log(e)
         pass
 
     return True
@@ -107,13 +107,13 @@ def add_examples_focus_lost(flag: bool, note: Note, fidx: int):
         return flag
 
     if not has_fields(note):
-        print("Note does not have the required fields")
+        log("Note does not have the required fields")
         return flag
 
     expr_text = note[EXPRESSION_FIELD_NAME]
 
     if expr_text == "":
-        print("Expression field is empty")
+        log("Expression field is empty")
         return flag
 
     if fidx == EXPRESSION_FIELD_POS:

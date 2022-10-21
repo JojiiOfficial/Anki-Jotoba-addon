@@ -8,7 +8,7 @@ from .editor import EXPRESSION_FIELD_POS, EXPRESSION_FIELD_NAME, AUDIO_FIELD_POS
     POS_FIELD_POS, PITCH_FIELD_POS, PITCH_FIELD_NAME, has_fields, READING_FIELD_NAME, POS_FIELD_NAME, \
     EXAMPLE_FIELD_PREFIX
 from .jotoba import *
-from .utils import format_furigana
+from .utils import format_furigana, log
 from aqt.utils import showInfo
 from aqt.qt import *
 from aqt import mw, gui_hooks
@@ -117,10 +117,10 @@ def bulk_add(nids: Sequence[NoteId], pitch=False, pos=False, sentences=False):
     mw.checkpoint("Bulk-add data")
     mw.progress.start()
     for nid in nids:
-        note = mw.col.getNote(nid)
+        note = mw.col.get_note(nid)
 
         if not has_fields(note):
-            print("skipping: not all fields")
+            log("skipping: not all fields")
             continue
 
         need_change = False
@@ -146,14 +146,14 @@ def bulk_add(nids: Sequence[NoteId], pitch=False, pos=False, sentences=False):
             kana = note[READING_FIELD_NAME]
             word = request_word(note[EXPRESSION_FIELD_NAME], kana)
         except:
-            print("not found for:" + note[EXPRESSION_FIELD_NAME])
+            log("not found for:" + note[EXPRESSION_FIELD_NAME])
             continue
 
-        pitch_d = get_pitch_html(word)
+        pitch_d = word.pitch
         if note[PITCH_FIELD_NAME] == "" and pitch and pitch_d != "":
             note[PITCH_FIELD_NAME] = pitch_d
 
-        pos_d = get_pos(word)
+        pos_d = word.part_of_speech
         if note[POS_FIELD_NAME] == "" and pos and pos_d != "":
             note[POS_FIELD_NAME] = "; ".join(pos_d)
 
@@ -170,7 +170,7 @@ def bulk_add(nids: Sequence[NoteId], pitch=False, pos=False, sentences=False):
 
                     note[field_name] = format_furigana(sentence["furigana"])
             except:
-                print("didn't find sentences")
+                log("didn't find sentences")
                 pass
 
         note.flush()

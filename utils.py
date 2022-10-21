@@ -1,5 +1,5 @@
 # Format furigana to anki's furigana style
-def format_furigana(furi) -> str:
+def format_furigana(furi: str) -> str:
     out = ""
 
     in_kanji = False
@@ -7,20 +7,22 @@ def format_furigana(furi) -> str:
     for c in furi:
         if c == '[':
             in_kanji = True
-            if out != "":
-                out +=" "
-            continue
-
-        if c == ']':
-            out += "]"
+            out +="<ruby>"
             continue
 
         if c == '|':
             if in_kanji:
-                out += '['
+                out += '<rp>(</rp><rt>'
                 in_kanji = False
+            continue
+
+        if c == ']':
+            out += "</rt><rp>)</rp></ruby>"
             continue
 
         out += c
             
     return out
+
+def log(msg: str):
+    print("[Jotoba Addon]", msg)
