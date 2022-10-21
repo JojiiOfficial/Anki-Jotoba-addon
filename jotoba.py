@@ -2,11 +2,15 @@ from typing import Optional, List
 
 import requests
 import json
+from aqt import mw
 
-JOTOBA_URL = "https://jotoba.de"
-JOTOBA_API = JOTOBA_URL + "/api"
-WORDS_API_URL = JOTOBA_API + "/search/words"
-SENTENCE_API_URL = JOTOBA_API + "/search/sentences"
+config = mw.addonManager.getConfig(__name__)
+print(config)
+
+LANGUAGE = config["Language"]
+JOTOBA_URL = config["Jotoba_URL"]
+WORDS_API_URL = JOTOBA_URL + config["API_Words_Suffix"]
+SENTENCE_API_URL = JOTOBA_URL + config["API_Sentence_Suffix"]
 
 
 class Word:
@@ -20,11 +24,12 @@ class Word:
     def __init__(self, word):
         if not word:
             return
-        self.expression = word["reading"]["kanji"]
-        if self.expression is None:
-            self.expression = word["reading"]["kana"]
-        else:
+        if "kanji" in word["reading"]:
+            self.expression = word["reading"]["kanji"]
             self.reading = word["reading"]["kana"]
+        else:
+            self.expression = word["reading"]["kana"]
+            self.reading = ""
         self.pitch = get_pitch_html(word)
         self.glosses = get_glosses(word)
         self.part_of_speech = get_pos(word)
@@ -41,12 +46,12 @@ def request_word(text, kana=""):
 
 
 def request(URL, text):
-    data = '{"query":"' + text + '","language":"English","no_english":true}'
+    data = '{"query":"' + text + '","language":"'+LANGUAGE+'","no_english":true}'
     headers = {"Content-Type": "application/json; charset=utf-8", "Accept": "application/json"}
     return requests.post(URL, data=data.encode('utf-8'), headers=headers)
 
 
-def find_word(res, text, kana="") -> Optional[Word]:
+def find_word(res, expr, kana="") -> Optional[Word]:
     words = res["words"]
     potential_words = []
     kana_words = []
@@ -54,18 +59,18 @@ def find_word(res, text, kana="") -> Optional[Word]:
         reading = word["reading"]
 
         if "kanji" in reading:
-            if reading["kanji"] == text and (reading["kana"] == kana or kana == ""):
+            if reading["kanji"] == expr and (reading["kana"] == kana or kana == ""):
                 potential_words.append(word)
-            elif reading["kana"] == text:
+            elif reading["kana"] == expr or reading["kana"] == kana:    # kana word has kanji writing or kanji writing is different from expr
                 kana_words.append(word)
         else:
-            if reading["kana"] == text:
+            if reading["kana"] == expr:
                 potential_words.append(word)
 
     if len(potential_words) == 0:
         potential_words = kana_words
 
-    if len(potential_words) != 1:  # esp. multiple hits for word written in kana possible, but also for kanji words with different readings
+    if len(potential_words) != 1 and kana == "":  # esp. multiple hits for word written in kana possible, but also for kanji words with different readings
         return None
 
     word = Word(potential_words[0])
@@ -83,7 +88,7 @@ def get_pos(word) -> List[str]:
                 else:
                     for key in keys.keys():
                         pos.append(key)
-                        #if key == "Verb":
+                        # if key == "Verb":
                         #    if isinstance(keys[key], str):
                         #        pos.append(keys[key])
                         #    else:

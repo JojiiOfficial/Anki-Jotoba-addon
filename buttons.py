@@ -4,7 +4,7 @@ from aqt.browser import Browser
 from aqt.editor import Editor
 from typing import List, Sequence
 
-from .editor import SRC_FIELD_POS, SRC_FIELD_NAME, AUDIO_FIELD_POS, JOTOBA_URL, READING_FIELD_POS, MEANING_FIELD_POS, \
+from .editor import EXPRESSION_FIELD_POS, EXPRESSION_FIELD_NAME, AUDIO_FIELD_POS, JOTOBA_URL, READING_FIELD_POS, MEANING_FIELD_POS, \
     POS_FIELD_POS, PITCH_FIELD_POS, PITCH_FIELD_NAME, has_fields, READING_FIELD_NAME, POS_FIELD_NAME, \
     EXAMPLE_FIELD_PREFIX
 from .jotoba import *
@@ -17,7 +17,7 @@ from aqt import mw, gui_hooks
 # Audio button
 def get_audio(editor: Editor):
     all_fields = editor.note.fields
-    src_text = all_fields[SRC_FIELD_POS];
+    src_text = all_fields[EXPRESSION_FIELD_POS]
     if src_text == "":
         return
     try:
@@ -26,14 +26,13 @@ def get_audio(editor: Editor):
         showInfo("Word not found")
         return
 
-    if word is not None and "audio" in word:
-        audio = JOTOBA_URL + word["audio"]
-        set_values_on_editor(audio, editor)
-    else:
+    try:
+        set_audio_in_editor(word.audio_url, editor)
+    except AttributeError:
         showInfo("Word has no audio")
 
 
-def set_values_on_editor(audio: str, editor: Editor):
+def set_audio_in_editor(audio: str, editor: Editor):
     audio = editor.urlToFile(audio)
     all_fields = editor.note.fields
     all_fields[AUDIO_FIELD_POS] = f'[sound:{audio}]'
@@ -63,18 +62,21 @@ def add_clear_content(buttons: List[str], editor: Editor):
 # Update fields
 def update_fields(editor: Editor):
     all_fields = editor.note.fields
-    if all_fields[SRC_FIELD_POS] == "":
+    if all_fields[EXPRESSION_FIELD_POS] == "":
+        showInfo("Please enter a word in the Expression field")
         return
-    for i in [MEANING_FIELD_POS, READING_FIELD_POS, POS_FIELD_POS, PITCH_FIELD_POS]:
-        all_fields[i] = f''
-    editor.loadNote()
-    editor.web.eval(f'focusField(0);')
-    editor.web.eval(f'focusField(1);')
+    if all_fields[READING_FIELD_POS] != "":
+        editor.web.eval(f'focusField(1)')
+        editor.web.eval(f'focusField(0)')
+    else:
+        editor.web.eval(f'focusField(0);')
+        editor.web.eval(f'focusField(1);')
     return
 
 
 def add_update_field_btn(buttons: List[str], editor: Editor):
     buttons += [editor.addButton("", "update_fields", update_fields, "tooltip", "Update data")]
+    #s = QShortcut(QKeySequence("Ctrl+Shift+U"), editor.parentWindow, activated=)
 
 
 def init():
@@ -142,9 +144,9 @@ def bulk_add(nids: Sequence[NoteId], pitch=False, pos=False, sentences=False):
 
         try:
             kana = note[READING_FIELD_NAME]
-            word = request_word(note[SRC_FIELD_NAME], kana)
+            word = request_word(note[EXPRESSION_FIELD_NAME], kana)
         except:
-            print("not found for:" + note[SRC_FIELD_NAME])
+            print("not found for:" + note[EXPRESSION_FIELD_NAME])
             continue
 
         pitch_d = get_pitch_html(word)
@@ -157,7 +159,7 @@ def bulk_add(nids: Sequence[NoteId], pitch=False, pos=False, sentences=False):
 
         if sentences and need_sentence:
             try:
-                sentences = request_sentence(note[SRC_FIELD_NAME])
+                sentences = request_sentence(note[EXPRESSION_FIELD_NAME])
                 for i, sentence in enumerate(sentences):
                     if i > 2:
                         break
