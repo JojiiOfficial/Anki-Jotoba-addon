@@ -1,15 +1,23 @@
-from .editor import SRC_FIELD_POS, SRC_FIELD_NAME, AUDIO_FIELD_POS, JOTOBA_URL, READING_FIELD_POS, MEANING_FIELD_POS, POS_FIELD_POS, PITCH_FIELD_POS, PITCH_FIELD_NAME, has_fields, READING_FIELD_NAME, POS_FIELD_NAME, EXAMPLE_FIELD_PREFIX
-from .jotoba import *
-from .utils import format_furigana
 from anki.hooks import addHook
+from anki.notes import NoteId
+from aqt.browser import Browser
+from aqt.editor import Editor
+from typing import List, Sequence
+
+from .editor import EXPRESSION_FIELD_POS, EXPRESSION_FIELD_NAME, AUDIO_FIELD_POS, JOTOBA_URL, READING_FIELD_POS, MEANING_FIELD_POS, \
+    POS_FIELD_POS, PITCH_FIELD_POS, PITCH_FIELD_NAME, has_fields, READING_FIELD_NAME, POS_FIELD_NAME, \
+    EXAMPLE_FIELD_PREFIX
+from .jotoba import *
+from .utils import format_furigana, log
 from aqt.utils import showInfo
 from aqt.qt import *
-from aqt import mw
+from aqt import mw, gui_hooks
+
 
 # Audio button
-def get_audio(editor):
-    allFields = editor.note.fields
-    src_text = allFields[SRC_FIELD_POS];
+def get_audio(editor: Editor):
+    all_fields = editor.note.fields
+    src_text = all_fields[EXPRESSION_FIELD_POS]
     if src_text == "":
         return
     try:
@@ -18,93 +26,101 @@ def get_audio(editor):
         showInfo("Word not found")
         return
 
-    if word != None and "audio" in word:
-        audio = JOTOBA_URL+word["audio"]
-        set_values_on_editor(audio, editor)
-    else:
+    try:
+        set_audio_in_editor(word.audio_url, editor)
+    except AttributeError:
         showInfo("Word has no audio")
 
 
-def set_values_on_editor(audio, editor):
+def set_audio_in_editor(audio: str, editor: Editor):
     audio = editor.urlToFile(audio)
-    allFields = editor.note.fields
-    allFields[AUDIO_FIELD_POS] = f'[sound:{audio}]'
+    all_fields = editor.note.fields
+    all_fields[AUDIO_FIELD_POS] = f'[sound:{audio}]'
     editor.loadNote()
     editor.web.setFocus()
     editor.web.eval(f'focusField({AUDIO_FIELD_POS});')
     editor.web.eval('caretToEnd();')
 
-def addAudioBtn(buttons, editor):
-    editor._links['add_audio'] = get_audio
-    return buttons + [editor._addButton("", "add_audio", "tooltip", label = "Add Audio")]
+
+def add_audio_btn(buttons: List[str], editor: Editor):
+    buttons += [editor.addButton("", "add_audio", get_audio, "tooltip", "Add Audio")]
+
 
 # Clear contents
-def clear_contents(editor):
-    allFields = editor.note.fields
-    for i in range(len(allFields)):
-        allFields[i] = f''
+def clear_contents(editor: Editor):
+    all_fields = editor.note.fields
+    for i in range(len(all_fields)):
+        all_fields[i] = f''
     editor.loadNote()
     editor.web.eval(f'focusField(0);')
 
-def addClearContent(buttons, editor):
-    editor._links['clear_contents'] = clear_contents
-    return buttons + [editor._addButton("", "clear_contents", "tooltip", label = "Clear all")]
 
-# Update fileds
-def update_fields(editor):
-    allFields = editor.note.fields
-    if allFields[SRC_FIELD_POS] == "":
+def add_clear_content(buttons: List[str], editor: Editor):
+    buttons += [editor.addButton("", "clear_contents", clear_contents, "tooltip", "Clear all")]
+
+
+# Update fields
+def update_fields(editor: Editor):
+    all_fields = editor.note.fields
+    if all_fields[EXPRESSION_FIELD_POS] == "":
+        showInfo("Please enter a word in the Expression field")
         return
-    for i in [MEANING_FIELD_POS, READING_FIELD_POS, POS_FIELD_POS, PITCH_FIELD_POS]:
-        allFields[i] = f''
-    editor.loadNote()
-    editor.web.eval(f'focusField(0);')
-    editor.web.eval(f'focusField(1);')
+    if all_fields[READING_FIELD_POS] != "":
+        editor.web.eval(f'focusField(1)')
+        editor.web.eval(f'focusField(0)')
+    else:
+        editor.web.eval(f'focusField(0);')
+        editor.web.eval(f'focusField(1);')
     return
 
-def addUpdateFieldBtn(buttons, editor):
-    editor._links['update_fields'] = update_fields
-    return buttons + [editor._addButton("", "update_fields", "tooltip", label = "Update data")]
+
+def add_update_field_btn(buttons: List[str], editor: Editor):
+    buttons += [editor.addButton("", "update_fields", update_fields, "tooltip", "Update data")]
+    #s = QShortcut(QKeySequence("Ctrl+Shift+U"), editor.parentWindow, activated=)
+
 
 def init():
-    addHook("setupEditorButtons", addClearContent)
-    addHook("setupEditorButtons", addUpdateFieldBtn)
-    addHook("setupEditorButtons", addAudioBtn)
-    addHook("browser.setupMenus", setupBrowserMenu) # Bulk add
+    gui_hooks.editor_did_init_buttons.append(add_clear_content)
+    gui_hooks.editor_did_init_buttons.append(add_update_field_btn)
+    gui_hooks.editor_did_init_buttons.append(add_audio_btn)
+    gui_hooks.browser_menus_did_init.append(setup_browser_menu)  # Bulk add
 
-def setupBrowserMenu(browser):
+
+def setup_browser_menu(browser: Browser):
     """ Add pitch menu """
     a = QAction("Bulk-add Pitch", browser)
-    a.triggered.connect(lambda: onRegenerate(browser, pitch = True))
+    a.triggered.connect(lambda: on_regenerate(browser, pitch=True))
     browser.form.menuEdit.addSeparator()
     browser.form.menuEdit.addAction(a)
 
     """ Add POS menu """
     a = QAction("Bulk-add POS", browser)
-    a.triggered.connect(lambda: onRegenerate(browser, pos = True))
+    a.triggered.connect(lambda: on_regenerate(browser, pos=True))
     browser.form.menuEdit.addAction(a)
 
     """ Add Sentence menu """
     a = QAction("Bulk-add Sentences", browser)
-    a.triggered.connect(lambda: onRegenerate(browser, sentences = True))
+    a.triggered.connect(lambda: on_regenerate(browser, sentences=True))
     browser.form.menuEdit.addAction(a)
 
     """ Add All menu """
     a = QAction("Bulk-add All", browser)
-    a.triggered.connect(lambda: onRegenerate(browser,pitch = True, pos = True, sentences = True))
+    a.triggered.connect(lambda: on_regenerate(browser, pitch=True, pos=True, sentences=True))
     browser.form.menuEdit.addAction(a)
 
-def onRegenerate(browser, pitch = False, pos = False, sentences = False):
+
+def on_regenerate(browser: Browser, pitch=False, pos=False, sentences=False):
     bulk_add(browser.selectedNotes(), pitch, pos, sentences)
 
-def bulk_add(nids, pitch = False, pos = False, sentences = False):
+
+def bulk_add(nids: Sequence[NoteId], pitch=False, pos=False, sentences=False):
     mw.checkpoint("Bulk-add data")
     mw.progress.start()
     for nid in nids:
-        note = mw.col.getNote(nid)
+        note = mw.col.get_note(nid)
 
         if not has_fields(note):
-            print("skipping: not all fields")
+            log("skipping: not all fields")
             continue
 
         need_change = False
@@ -118,7 +134,7 @@ def bulk_add(nids, pitch = False, pos = False, sentences = False):
 
         if sentences:
             for i in range(3):
-                if note[EXAMPLE_FIELD_PREFIX+str(i+1)] == "":
+                if note[EXAMPLE_FIELD_PREFIX + str(i + 1)] == "":
                     need_change = True
                     need_sentence = True
                     break
@@ -128,33 +144,33 @@ def bulk_add(nids, pitch = False, pos = False, sentences = False):
 
         try:
             kana = note[READING_FIELD_NAME]
-            word = request_word(note[SRC_FIELD_NAME], kana)
+            word = request_word(note[EXPRESSION_FIELD_NAME], kana)
         except:
-            print("not found for:"+note[SRC_FIELD_NAME])
+            log("not found for:" + note[EXPRESSION_FIELD_NAME])
             continue
 
-        pitch_d = get_pitch_html(word)
-        if note[PITCH_FIELD_NAME] == "" and pitch and pitch_d != None:
+        pitch_d = word.pitch
+        if note[PITCH_FIELD_NAME] == "" and pitch and pitch_d != "":
             note[PITCH_FIELD_NAME] = pitch_d
 
-        pos_d = get_pos(word)
-        if note[POS_FIELD_NAME] == "" and pos and pos_d != None:
+        pos_d = word.part_of_speech
+        if note[POS_FIELD_NAME] == "" and pos and pos_d != "":
             note[POS_FIELD_NAME] = "; ".join(pos_d)
 
         if sentences and need_sentence:
             try:
-                sentences = request_sentence(note[SRC_FIELD_NAME])
+                sentences = request_sentence(note[EXPRESSION_FIELD_NAME])
                 for i, sentence in enumerate(sentences):
                     if i > 2:
-                        break;
+                        break
 
-                    field_name = EXAMPLE_FIELD_PREFIX+str(i+1)
+                    field_name = EXAMPLE_FIELD_PREFIX + str(i + 1)
                     if note[field_name] != "":
                         continue
 
-                    note[field_name] = format_furigana(sentence["furigana"]) 
+                    note[field_name] = format_furigana(sentence["furigana"])
             except:
-                print("didn't find sentences")
+                log("didn't find sentences")
                 pass
 
         note.flush()

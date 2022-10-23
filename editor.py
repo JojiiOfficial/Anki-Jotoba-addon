@@ -1,39 +1,52 @@
-from .jotoba import *
-from .utils import format_furigana
+from anki.notes import Note
+from aqt import mw, gui_hooks
+from aqt.utils import showInfo
 
-from anki.hooks import addHook
-from aqt import mw
+from .jotoba import *
+from .utils import format_furigana, log
 
 # Field constants
-SRC_FIELD_NAME = "Expression"
-SRC_FIELD_POS = 0
-
-AUDIO_FIELD_NAME = "Audio"
-AUDIO_FIELD_POS = 5
-
-MEANING_FIELD_NAME = "Meaning"
-MEANING_FIELD_POS = 2
+EXPRESSION_FIELD_NAME = "Expression"
+EXPRESSION_FIELD_POS = 0
 
 READING_FIELD_NAME = "Reading"
 READING_FIELD_POS = 1
 
-POS_FIELD_NAME = "POS"
-POS_FIELD_POS = 3
-
 PITCH_FIELD_NAME = "Pitch"
-PITCH_FIELD_POS = 13
+PITCH_FIELD_POS = 2
+
+MEANING_FIELD_NAME = "Meaning"
+MEANING_FIELD_POS = 3
+
+POS_FIELD_NAME = "POS"
+POS_FIELD_POS = 4
+
+IMAGE_FIELD_NAME = "Image"
+Image_FIELD_POS = 5
+
+AUDIO_FIELD_NAME = "Audio"
+AUDIO_FIELD_POS = 6
+
+NOTES_FIELD_NAME = "Notes"
+NOTES_FIELD_POS = 7
 
 EXAMPLE_FIELD_PREFIX = "Example "
 
-ALL_FIELDS = [SRC_FIELD_NAME, MEANING_FIELD_NAME, READING_FIELD_NAME, POS_FIELD_NAME, PITCH_FIELD_NAME, EXAMPLE_FIELD_PREFIX+"1", EXAMPLE_FIELD_PREFIX+"2",EXAMPLE_FIELD_PREFIX+"2"]
+ALL_FIELD_NAMES = [EXPRESSION_FIELD_NAME, MEANING_FIELD_NAME, READING_FIELD_NAME, POS_FIELD_NAME, PITCH_FIELD_NAME,
+                   EXAMPLE_FIELD_PREFIX + "1", EXAMPLE_FIELD_PREFIX + "2", EXAMPLE_FIELD_PREFIX + "3"]
 
-def fill_data(fields, text, flag):
-    if not has_fields(fields):
-        return flag
+ALL_FIELD_POS = {EXPRESSION_FIELD_NAME: EXPRESSION_FIELD_POS,
+                 AUDIO_FIELD_NAME: AUDIO_FIELD_POS,
+                 MEANING_FIELD_NAME: MEANING_FIELD_POS,
+                 READING_FIELD_NAME: READING_FIELD_POS,
+                 POS_FIELD_NAME: POS_FIELD_POS,
+                 PITCH_FIELD_NAME: PITCH_FIELD_POS}
 
+
+def fill_data(note: Note, expr: str, flag: bool, reading: str = ""):
     need_update = False
-    for i in ALL_FIELDS:
-        if fields[i] == "":
+    for field_i in ALL_FIELD_NAMES:
+        if note[field_i] == "":
             need_update = True
             break
 
@@ -41,82 +54,81 @@ def fill_data(fields, text, flag):
         return flag
 
     try:
-        reading = fields[READING_FIELD_NAME]
-        word = request_word(text, kana = reading)
-    except:
-        print("Didn't found word")
+        word = request_word(expr, reading)
+    except Exception as e:  # error while fetching word
+        log(e)
         return flag
 
-    if word == None:
-        print("didn't found #2")
+    if word is None:  # word not found or ambiguity (no kana reading) -> user will call again after providing reading
         return flag
 
-    did_change = False
+    note[EXPRESSION_FIELD_NAME] = word.expression
 
-    pos = get_pos(word)
-    if fields[POS_FIELD_NAME] == "" and len(pos) > 0:
-        fields[POS_FIELD_NAME] = "; ".join(pos)
-        did_change = True
+    note[POS_FIELD_NAME] = "; ".join(word.part_of_speech)
 
-    reading = get_katakana(word)
-    if fields[READING_FIELD_NAME] == "" and text != reading:
-        fields[READING_FIELD_NAME] = reading
-        did_change = True
+    note[READING_FIELD_NAME] = word.reading
 
-    if fields[MEANING_FIELD_NAME] == "" and gloss_count(word) <= 3:
-        glosses = get_glosses(word)
-        fields[MEANING_FIELD_NAME] = ", ".join(glosses)
-        did_change = True
+    note[MEANING_FIELD_NAME] = "; ".join(word.glosses[:3])
 
-    pitch = get_pitch_html(word)
-    if fields[PITCH_FIELD_NAME] == "" and pitch != None:
-        fields[PITCH_FIELD_NAME] = pitch
-        did_change = True
+    note[PITCH_FIELD_NAME] = word.pitch
 
     try:
-        sentences = request_sentence(text)
+        sentences = request_sentence(expr)
         for i, sentence in enumerate(sentences):
             if i > 2:
-                break;
+                break
 
-            field_name = EXAMPLE_FIELD_PREFIX+str(i+1)
-            if fields[field_name] != "":
+            field_name = EXAMPLE_FIELD_PREFIX + str(i + 1)
+            if note[field_name] != "":
                 continue
 
-            fields[field_name] = format_furigana(sentence["furigana"]) 
-            did_change = True
-    except:
-        print("didn't find sentences")
+            note[field_name] = format_furigana(sentence["furigana"])
+    except Exception as e:
+        log(e)
         pass
 
-    return did_change
+    return True
 
-# Check whether all fields are available in given note
-def has_fields(fields) -> bool:
-    for field in [SRC_FIELD_NAME, AUDIO_FIELD_NAME, MEANING_FIELD_NAME, READING_FIELD_NAME, POS_FIELD_NAME, PITCH_FIELD_NAME]:
-        if not field in fields:
+
+# Check whether all fields are available in currently displayed note
+def has_fields(note) -> bool:
+    for f in ALL_FIELD_POS:
+        exists = False
+        for pos, name in enumerate(mw.col.models.field_names(note.note_type())):
+            if name == f and pos == ALL_FIELD_POS[f]:
+                exists = True
+        if not exists:
             return False
     return True
 
-def add_examples_focusLost(flag, n, fidx):
-    src_text = n[SRC_FIELD_NAME]
 
-    if src_text == "":
+def add_examples_focus_lost(flag: bool, note: Note, fidx: int):
+    if fidx not in [EXPRESSION_FIELD_POS, READING_FIELD_POS]:
         return flag
 
-    lookupIdx = []
-    for f in [SRC_FIELD_NAME]:
-        for c, name in enumerate(mw.col.models.field_names(n.note_type())):
-            if name == f:
-                lookupIdx.append(c)
-
-    # Not src field
-    if fidx not in lookupIdx:
+    if not has_fields(note):
+        log("Note does not have the required fields")
         return flag
 
-    return fill_data(n, src_text, flag)
+    expr_text = note[EXPRESSION_FIELD_NAME]
 
-addHook('editFocusLost', add_examples_focusLost)
+    if expr_text == "":
+        log("Expression field is empty")
+        return flag
+
+    if fidx == EXPRESSION_FIELD_POS:
+        return fill_data(note, expr_text, flag)
+
+    reading_text = note[READING_FIELD_NAME]
+
+    if reading_text == "":
+        return flag
+
+    return fill_data(note, expr_text, flag, reading_text)
+
+
+gui_hooks.editor_did_unfocus_field.append(add_examples_focus_lost)
 
 from .buttons import init as btn_init
+
 btn_init()
